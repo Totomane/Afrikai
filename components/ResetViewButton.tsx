@@ -8,11 +8,11 @@ interface ResetViewButtonProps {
 export const ResetViewButton: React.FC<ResetViewButtonProps> = ({ onReset }) => {
   return (
     <button
-      onClick={onReset}
-      className="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-sm border border-white/20 rounded-full p-3 hover:bg-white/20 transition-all duration-200 group"
-      title="Reset view"
-    >
-      <RotateCcw className="w-5 h-5 text-white group-hover:rotate-180 transition-transform duration-300" />
-    </button>
+          onClick={onReset}
+          className="absolute top-1 left-1 p-1 hover:bg-white/10 rounded"
+          title="Reset Selection"
+        >
+          <ArrowLeft className="w-4 h-4 text-white" />
+        </button>
   );
 };

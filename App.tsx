@@ -1,9 +1,11 @@
+// src/App.tsx
 import React, { useState } from 'react';
 import { GlobeMap } from './components/GlobeMap';
 import { Overlay } from './components/Header';
 import { ResetViewButton } from './components/ResetViewButton';
 import { RiskSelector } from './components/RiskSelector';
 import { TimeSlider } from './components/TimeSlider';
+import { GeneratedDocument } from './components/GenerateDocumentButton';
 
 interface CountryData {
   properties: {
@@ -55,6 +57,13 @@ function App() {
           )}
         </div>
       )}
+
+      {/* Bouton Generate Report */}
+      <GeneratedDocument 
+        selectedCountry={selectedCountry}
+        selectedRisks={selectedRisks}
+        year={year}
+      />
     </div>
   );
 }
