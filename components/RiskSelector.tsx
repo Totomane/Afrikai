@@ -31,11 +31,13 @@ export const RiskSelector: React.FC<RiskSelectorProps> = ({
   onReset
 }) => {
   const handleRiskToggle = (riskId: string) => {
-    const updatedRisks = selectedRisks.includes(riskId)
-      ? selectedRisks.filter(id => id !== riskId)
-      : [...selectedRisks, riskId];
-
-    onRiskChange(updatedRisks);
+    if (selectedRisks.includes(riskId)) {
+      onRiskChange(selectedRisks.filter(id => id !== riskId));
+    } else {
+      if (selectedRisks.length < 3) {
+        onRiskChange([...selectedRisks, riskId]);
+      }
+    }
   };
 
   return (
@@ -44,7 +46,7 @@ export const RiskSelector: React.FC<RiskSelectorProps> = ({
       {onReset && (
         <button
           onClick={onReset}
-          className="absolute top-1 left-1 p-1 hover:bg-white/10 rounded"
+          className="absolute top-1 left-1 p-5 hover:bg-white/10 rounded"
           title="Reset Selection"
         >
           <ArrowLeft className="w-4 h-4 text-white" />
@@ -53,21 +55,21 @@ export const RiskSelector: React.FC<RiskSelectorProps> = ({
 
       <h3 className="text-[0.65rem] font-semibold text-white mb-1">Risk Assessment Categories</h3>
 
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-5 gap-2">
         {RISK_TYPES.map((risk) => {
           const isSelected = selectedRisks.includes(risk.id);
-
+          const disabled = !isSelected && selectedRisks.length >= 3;
           return (
             <label
               key={risk.id}
-              className="flex items-center space-x-1 p-[2px] rounded cursor-pointer hover:bg-white/5"
-              style={{ fontSize: '0.65rem', lineHeight: '1rem' }}
+              className={`flex items-center space-x-1 p-1 rounded cursor-pointer hover:bg-white/5 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ fontSize: '1rem', lineHeight: '1.3rem', fontWeight: 600 }}
             >
               <div className="relative">
                 {isSelected ? (
-                  <CheckCircle2 className="w-2.5 h-2.5 text-amber-500" />
+                  <CheckCircle2 className="w-4 h-4 text-blue-500" />
                 ) : (
-                  <Circle className="w-2.5 h-2.5 text-gray-400" />
+                  <Circle className="w-4 h-4 text-gray-400" />
                 )}
               </div>
               <input
@@ -75,8 +77,9 @@ export const RiskSelector: React.FC<RiskSelectorProps> = ({
                 checked={isSelected}
                 onChange={() => handleRiskToggle(risk.id)}
                 className="sr-only"
+                disabled={disabled}
               />
-              <span className={`font-medium ${isSelected ? 'text-amber-500' : 'text-gray-300'}`}>
+              <span className={`font-bold ${isSelected ? 'text-blue-500' : 'text-gray-300'}`}>
                 {risk.label}
               </span>
             </label>
@@ -85,8 +88,8 @@ export const RiskSelector: React.FC<RiskSelectorProps> = ({
       </div>
 
       {selectedRisks.length > 0 && (
-        <div className="mt-1 pt-1 border-t border-white/10">
-          <p className="text-[0.6rem] text-amber-500">
+        <div className="mt-1 pt-1 border-t border-blue-500/20">
+          <p className="text-[0.6rem] text-blue-500">
             {selectedRisks.length} risk{selectedRisks.length !== 1 ? 's' : ''} selected
           </p>
         </div>

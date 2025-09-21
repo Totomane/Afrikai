@@ -5,7 +5,7 @@ import { Overlay } from './components/Header';
 import { ResetViewButton } from './components/ResetViewButton';
 import { RiskSelector } from './components/RiskSelector';
 import { TimeSlider } from './components/TimeSlider';
-import { GeneratedDocument } from './components/GenerateDocumentButton';
+import { GeneratedMedia } from './components/GenerateMedia';
 
 interface CountryData {
   properties: {
@@ -38,7 +38,11 @@ function App() {
         setZoomedCountry={setZoomedCountry}
       />
       <Overlay show={showOverlay} onVoiceClick={onVoiceClick} />
-      {zoomedCountry && <ResetViewButton onReset={handleResetView} />}
+      {zoomedCountry && (
+        <div className="fixed top-4 right-4 d-5">
+          <ResetViewButton onReset={handleResetView} />
+        </div>
+      )}
 
       {/* Contrôles directement visibles */}
       {zoomedCountry && (
@@ -48,9 +52,9 @@ function App() {
           </div>
           <TimeSlider year={year} onYearChange={setYear} min={2000} max={2030} />
           {selectedCountry && (
-            <div className="bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg w-max mt-2 z-10">
+            <div className="bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg w-max mt-2 z-10 border border-blue-500 mx-auto flex flex-col items-center">
               <p className="text-sm font-medium">Selected:</p>
-              <p className="text-lg font-bold text-emerald-400">
+              <p className="text-lg font-bold text-blue-400">
                 {selectedCountry.properties?.NAME || selectedCountry.properties?.name}
               </p>
             </div>
@@ -59,7 +63,7 @@ function App() {
       )}
 
       {/* Bouton Generate Report */}
-      <GeneratedDocument 
+      <GeneratedMedia
         selectedCountry={selectedCountry}
         selectedRisks={selectedRisks}
         year={year}

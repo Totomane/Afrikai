@@ -13,15 +13,15 @@ export const TimeSlider: React.FC<TimeSliderProps> = ({ year, onYearChange, min 
   };
 
   return (
-    <div className="bg-black/70 backdrop-blur-md rounded-xl p-2 shadow-lg w-full">
-      <label className="block text-white mb-1 font-medium text-xs">Select Year: {year}</label>
+  <div className="bg-transparent rounded-lg p-1 w-full">
+  <label className="block text-white mb-1 font-medium text-xs">Select Year: {year}</label>
       <input
         type="range"
         min={min}
         max={max}
         value={year}
         onChange={handleChange}
-        className="w-full h-1 bg-gray-700 rounded-lg accent-amber-500"
+        className="w-full h-1 bg-gray-700 rounded-lg accent-blue-500"
       />
     </div>
   );

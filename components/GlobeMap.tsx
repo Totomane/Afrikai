@@ -58,9 +58,9 @@ export const GlobeMap: React.FC<GlobeMapProps> = ({
   ) => {
     globe
       .polygonCapColor((d: CountryData) => {
-        if (isCountrySelected(d, selected)) return '#f59e0b'; // sélection
-        if (hovered && d === hovered) return '#f59e0b'; // survol
-        return '#10b981'; // normal
+        if (isCountrySelected(d, selected)) return '#2563eb'; // sélection (blue-600)
+        if (hovered && d === hovered) return '#3b82f6'; // survol (blue-500)
+        return '#e0e7ef'; // normal (white-ish)
       })
       .polygonAltitude((d: CountryData) => {
         if (isCountrySelected(d, selected)) return 0.06; // élevé si sélection
@@ -89,13 +89,13 @@ export const GlobeMap: React.FC<GlobeMapProps> = ({
       .then(countries => {
         globe
           .polygonsData(countries.features)
-          .polygonSideColor(() => 'rgba(16, 185, 129, 0.3)')
-          .polygonStrokeColor(() => '#065f46')
+          .polygonSideColor(() => 'rgba(59, 130, 246, 0.15)') // blue-500/15
+          .polygonStrokeColor(() => '#2563eb') // blue-600
           .polygonLabel(
             (d: CountryData) =>
               `<div style="
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
+                background: rgba(30, 64, 175, 0.85); /* blue-800 */
+                color: #e0e7ef;
                 padding: 8px 12px;
                 border-radius: 6px;
                 font-family: system-ui, -apple-system, sans-serif;
