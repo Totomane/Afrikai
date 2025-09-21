@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface ResetViewButtonProps {
   onReset: () => void;
