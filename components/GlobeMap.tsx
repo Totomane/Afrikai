@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import Globe from 'globe.gl';
 
 export interface CountryData {
@@ -12,16 +12,32 @@ interface GlobeMapProps {
   setZoomedCountry: (country: CountryData | null) => void;
 }
 
-export const GlobeMap: React.FC<GlobeMapProps> = ({
+export interface GlobeMapRef {
+  resetToInitialView: () => void;
+}
+
+export const GlobeMap = forwardRef<GlobeMapRef, GlobeMapProps>(({
   selectedCountry,
   setSelectedCountry,
   setZoomedCountry,
-}) => {
+}, ref) => {
   const globeEl = useRef<HTMLDivElement>(null);
   const globeInstance = useRef<any>(null);
 
   // Ref pour toujours avoir la sélection à jour dans les handlers
   const selectedRef = useRef<CountryData | null>(null);
+
+  // Initial camera position
+  const initialCameraPosition = { lat: 5, lng: 17, altitude: 2 };
+
+  // Expose reset function to parent component
+  useImperativeHandle(ref, () => ({
+    resetToInitialView: () => {
+      if (globeInstance.current) {
+        globeInstance.current.pointOfView(initialCameraPosition, 1000);
+      }
+    }
+  }));
 
   const isCountrySelected = (d: CountryData, sel: CountryData | null) => {
     if (!sel) return false;
@@ -73,7 +89,7 @@ export const GlobeMap: React.FC<GlobeMapProps> = ({
   useEffect(() => {
     if (!globeEl.current) return;
 
-    const globe = Globe()
+    const globe = (Globe as any)()
       .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
       .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
       .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
@@ -126,7 +142,7 @@ export const GlobeMap: React.FC<GlobeMapProps> = ({
             updatePolygonStyles(globeInstance.current, polygon);
           });
 
-        globe.pointOfView({ lat: 0, lng: 20, altitude: 2 });
+        globe.pointOfView(initialCameraPosition);
       })
       .catch(err => console.error(err));
 
@@ -157,4 +173,4 @@ export const GlobeMap: React.FC<GlobeMapProps> = ({
   }, [selectedCountry]);
 
   return <div ref={globeEl} className="absolute inset-0 top-0" />;
-};
+});

@@ -1,8 +1,8 @@
+// src/types/report.ts
 export interface ReportRequest {
-  countries: string[];         // <-- tableau de pays
-  risk_categories: string[];   // <-- tableau de risques
-  end_date: string;            // YYYY-MM-DD
-  format?: "pdf" | "docx";     // optionnel
+  country: string;
+  risks: string[];
+  year: string;
 }
 
 export interface ReportResponse {

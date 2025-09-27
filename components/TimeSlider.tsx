@@ -7,14 +7,14 @@ interface TimeSliderProps {
   max?: number;
 }
 
-export const TimeSlider: React.FC<TimeSliderProps> = ({ year, onYearChange, min = 2000, max = 2030 }) => {
+export const TimeSlider: React.FC<TimeSliderProps> = ({ year, onYearChange, min = 2025, max = 2030 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onYearChange(Number(e.target.value));
   };
 
   return (
-  <div className="bg-transparent rounded-lg p-1 w-full">
-  <label className="block text-white mb-1 font-medium text-xs">Select Year: {year}</label>
+    <div className="bg-black/50 backdrop-blur-sm rounded-xl p-2 shadow-lg w-full">
+      <label className="block text-white mb-1 font-medium text-xs">Select Year: {year}</label>
       <input
         type="range"
         min={min}
