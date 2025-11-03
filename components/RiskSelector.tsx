@@ -4,13 +4,13 @@ import { CheckCircle2, Circle, ArrowLeft } from 'lucide-react';
 interface RiskSelectorProps {
   selectedRisks: string[];
   onRiskChange: (risks: string[]) => void;
-  onReset?: () => void; // reset sélection si nécessaire
+  onReset?: () => void; 
 }
 
 const RISK_TYPES = [
   { id: 'climate', label: 'Climate Change' },
   { id: 'cyber', label: 'Cyber Security' },
-  { id: 'financial', label: 'Financial Crisis' },
+  { id: 'rare-earth', label: 'Rare Earth Commodity' },
   { id: 'geopolitical', label: 'Geopolitical Tensions' },
   { id: 'pandemic', label: 'Pandemic Outbreak' },
   { id: 'supply-chain', label: 'Supply Chain Disruption' },

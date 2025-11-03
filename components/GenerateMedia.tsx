@@ -8,7 +8,7 @@ import { ReportRequest } from '../types/reports';
 const PDF_PREVIEW = 'https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg';
 
 interface GeneratedMediaProps {
-  selectedCountry: { properties: { NAME?: string; name?: string } } | null;
+  selectedCountry: { properties: { NAME?: string; name?: string; iso_a3?: string } } | null;
   selectedRisks: string[];
   year: number;
 }
@@ -32,17 +32,20 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
       return;
     }
     const countryName = selectedCountry.properties?.NAME || selectedCountry.properties?.name || '';
+    const countryIso3 = selectedCountry.properties?.iso_a3 || '';
     setLoading(true);
     setErrorMessage(null);
 
     const data: ReportRequest = {
       country: countryName,
+      iso3: countryIso3,
       risks: selectedRisks,
       year: year.toString(),
     };
 
     try {
       console.log("[Report] Payload:", data);
+      console.log("[Report] Country:", countryName, "ISO3:", countryIso3);
       const response = await generateReport(data);
       console.log("[Report] Backend response:", response);
       setReportUrl(`http://localhost:8000${response.download_url}`);
@@ -72,14 +75,17 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
     setErrorMessage(null);
 
     const countryName = selectedCountry.properties?.NAME || selectedCountry.properties?.name || '';
+    const countryIso3 = selectedCountry.properties?.iso_a3 || '';
     const data = {
       country: countryName,
+      iso3: countryIso3,
       risks: selectedRisks,
       year: year.toString(),
     };
 
     try {
       console.log("[Podcast] Payload:", data);
+      console.log("[Podcast] Country:", countryName, "ISO3:", countryIso3);
       const response = await generatePodcast(data);
       console.log("[Podcast] Backend response:", response);
       setPodcastUrl(`http://localhost:8000${response.podcast_url}`);

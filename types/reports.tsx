@@ -1,6 +1,7 @@
 // src/types/report.ts
 export interface ReportRequest {
   country: string;
+  iso3: string;
   risks: string[];
   year: string;
 }

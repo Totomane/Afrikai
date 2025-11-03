@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react
 import Globe from 'globe.gl';
 
 export interface CountryData {
-  properties: { NAME?: string; name?: string };
+  properties: { NAME?: string; name?: string; iso_a3?: string };
   geometry: any;
 }
 

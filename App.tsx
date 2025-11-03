@@ -12,6 +12,7 @@ interface CountryData {
   properties: {
     NAME?: string;
     name?: string;
+    iso_a3?: string;
   };
   geometry: any;
 }

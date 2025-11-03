@@ -85,7 +85,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
           flex items-center justify-center cursor-pointer shadow-lg
           transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-xl
           m-4 relative z-10
-          ${isOpen ? 'shadow-2xl scale-110' : ''}
+          ${isOpen ? 'w-180 shadow-2xl scale-110' : ''}
         `}>
           {/* Logo Icon */}
           <svg 
@@ -108,7 +108,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
         fixed top-0 left-0 h-screen bg-gradient-to-b from-gray-900/95 to-black/95 
         backdrop-blur-lg shadow-2xl
         transition-all duration-500 ease-in-out
-        ${isOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full'}
+        ${isOpen ? 'w-180 translate-x-0' : 'w-0 -translate-x-full'}
         overflow-hidden
       `}>
         <div className="pt-20 px-6 h-full flex flex-col">
@@ -127,7 +127,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
 
           {/* Tab Navigation */}
           <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
-            <div className="flex bg-gray-800/50 rounded-lg p-1">
+            <div className="w-180 flex bg-gray-800/50 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('navigation')}
                 className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
@@ -146,7 +146,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
-                Media Files
+                Media
               </button>
             </div>
           </div>

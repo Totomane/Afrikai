@@ -1,3 +1,4 @@
+// src/components/VoiceNavigationButton.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 
@@ -10,6 +11,7 @@ interface VoiceSession {
   session_id: string;
   active: boolean;
 }
+
 
 export const VoiceNavigationButton: React.FC<VoiceNavigationButtonProps> = ({
   onVoiceCommand,
