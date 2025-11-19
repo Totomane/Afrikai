@@ -14,6 +14,7 @@ interface GlobeMapProps {
 
 export interface GlobeMapRef {
   resetToInitialView: () => void;
+  focusCountry: (country: CountryData) => void;
 }
 
 export const GlobeMap = forwardRef<GlobeMapRef, GlobeMapProps>(({
@@ -35,6 +36,12 @@ export const GlobeMap = forwardRef<GlobeMapRef, GlobeMapProps>(({
     resetToInitialView: () => {
       if (globeInstance.current) {
         globeInstance.current.pointOfView(initialCameraPosition, 1000);
+      }
+    },
+    focusCountry: (country: CountryData) => {
+      if (globeInstance.current && country) {
+        const { lat, lng } = getCountryCenter(country.geometry);
+        globeInstance.current.pointOfView({ lat, lng, altitude: 0.8 }, 1000);
       }
     }
   }));
@@ -78,7 +85,7 @@ export const GlobeMap = forwardRef<GlobeMapRef, GlobeMapProps>(({
         if (hovered && d === hovered) return '#3b82f6'; // survol (blue-500)
         return '#e0e7ef'; // normal (white-ish)
       })
-      .polygonAltitude((d: CountryData) => {
+      .polygonAltitude((d: CountryData) => {  
         if (isCountrySelected(d, selected)) return 0.06; // élevé si sélection
         if (hovered && d === hovered) return 0.06;       // élevé au survol
         return 0.01;

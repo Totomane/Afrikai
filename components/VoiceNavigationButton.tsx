@@ -1,360 +1,208 @@
-// src/components/VoiceNavigationButton.tsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { Mic } from "lucide-react";
 
-interface VoiceNavigationButtonProps {
-  onVoiceCommand?: (command: string, action: string) => void;
-  onTranscription?: (text: string) => void;
-}
-
-interface VoiceSession {
-  session_id: string;
-  active: boolean;
-}
-
-
-export const VoiceNavigationButton: React.FC<VoiceNavigationButtonProps> = ({
-  onVoiceCommand,
-  onTranscription
-}) => {
-  const [isListening, setIsListening] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [session, setSession] = useState<VoiceSession | null>(null);
-  const [lastTranscription, setLastTranscription] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [isMuted, setIsMuted] = useState(false);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+/* === 🌊 Siri-like Wave Animation === */
+const SiriWave: React.FC<{ isActive: boolean }> = ({ isActive }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animationRef = useRef<number>();
 
   useEffect(() => {
-    // Start voice session when component mounts
-    startVoiceSession();
-    
+    if (!isActive || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d")!;
+    let frame = 0;
+
+    const draw = () => {
+      animationRef.current = requestAnimationFrame(draw);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+
+      const mid = canvas.height / 2;
+      const width = canvas.width;
+      const step = width / 64;
+      const time = frame / 10;
+
+      for (let i = 0; i <= 64; i++) {
+        const x = i * step;
+        const amplitude = 15 + Math.sin(time / 5 + i) * 10;
+        const frequency = 0.04 + i * 0.01;
+        const y =
+          mid +
+          Math.sin(x * frequency + time + i * 1.5) * amplitude * (1 - i / 80);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+
+      ctx.strokeStyle = "#3b82f6";
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "#60a5fa";
+      ctx.stroke();
+
+      frame++;
+    };
+
+    draw();
     return () => {
-      // End session when component unmounts
-      if (session) {
-        endVoiceSession();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [isActive]);
 
-  const startVoiceSession = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/voice/start-session/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+  return <canvas ref={canvasRef} width={220} height={70} className="mt-2" />;
+};
 
-      if (!response.ok) {
-        throw new Error('Failed to start voice session');
-      }
+/* === 🎤 Main Component === */
+interface Props {
+  onVoiceResult: (country: string, risk?: string, year?: number) => void;
+}
 
-      const data = await response.json();
-      setSession({
-        session_id: data.session_id,
-        active: true
-      });
+export const VoiceNavigationButton: React.FC<Props> = ({ onVoiceResult }) => {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [stage, setStage] = useState<"idle" | "conversation" | "done">("idle");
 
-    } catch (error) {
-      console.error('Error starting voice session:', error);
-      setError('Failed to initialize voice system');
-    }
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /* === 🎧 Play Pre-Recorded Prompts === */
+  const playPrompt = async (file: string): Promise<void> => {
+    if (!file) return;
+    const audioUrl = `http://localhost:8000/static/voicecmd/${file}`;
+    const audio = new Audio(audioUrl);
+    audioRef.current = audio;
+    setSpeaking(true);
+
+    return new Promise((resolve) => {
+      audio.onended = () => {
+        setSpeaking(false);
+        resolve();
+      };
+      audio.onerror = () => {
+        setSpeaking(false);
+        setTranscription("⚠️ Could not load prompt audio.");
+        setTimeout(() => setTranscription(null), 3000);
+        resolve();
+      };
+      audio.play();
+    });
   };
 
-  const endVoiceSession = async () => {
-    if (!session) return;
-
-    try {
-      await fetch('http://localhost:8000/voice/end-session/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: session.session_id
-        })
-      });
-
-      setSession(null);
-    } catch (error) {
-      console.error('Error ending voice session:', error);
-    }
-  };
-
-  const startListening = async () => {
-    if (!session) {
-      setError('Voice session not initialized');
-      return;
-    }
+  /* === 🎙️ Record User Response === */
+  const recordAnswer = async (currentSession = sessionId) => {
+    if (!currentSession) return;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       mediaRecorderRef.current = new MediaRecorder(stream);
-      audioChunksRef.current = [];
+      chunks.current = [];
 
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
-
+      mediaRecorderRef.current.ondataavailable = (e) => chunks.current.push(e.data);
       mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        await processAudioInput(audioBlob);
-        
-        // Stop all tracks to release microphone
-        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(chunks.current, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", blob, "voice_input.webm");
+
+        try {
+          const res = await fetch(
+            `http://localhost:8000/voice/conversation/${currentSession}/`,
+            { method: "POST", body: formData }
+          );
+          const data = await res.json();
+          if (data.transcription)
+            setTranscription(`🗣️ ${data.transcription}`);
+
+          if (data.play) await playPrompt(data.play);
+
+          // If final data received → zoom on country
+          if (data.data) {
+            console.log("✅ Final data:", data.data);
+            onVoiceResult(data.data.country, data.data.risk, data.data.year);
+            setStage("done");
+            return;
+          }
+
+          // Retry if flow continues or error
+          if (!data.data && !data.play?.includes("error")) {
+            setTimeout(() => recordAnswer(currentSession), 400);
+          } else if (data.play?.includes("error")) {
+            // Play error.mp3 and retry
+            await playPrompt("error.mp3");
+            setTimeout(() => recordAnswer(currentSession), 400);
+          }
+        } catch (err) {
+          console.error("⚠️ Voice flow failed:", err);
+          await playPrompt("error.mp3");
+          setTimeout(() => recordAnswer(currentSession), 400);
+        } finally {
+          setListening(false);
+          setTimeout(() => setTranscription(null), 3000);
+        }
       };
 
       mediaRecorderRef.current.start();
-      setIsListening(true);
-      setError('');
-
-      // Auto-stop after 10 seconds
-      setTimeout(() => {
-        if (isListening && mediaRecorderRef.current?.state === 'recording') {
-          stopListening();
-        }
-      }, 10000);
-
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-      setError('Microphone access denied or not available');
+      setListening(true);
+      setTranscription("🎧 Listening...");
+      setTimeout(() => mediaRecorderRef.current?.stop(), 5000);
+    } catch (err) {
+      console.error("🎙️ Mic error:", err);
+      setTranscription("⚠️ Microphone access denied.");
+      setListening(false);
+      setTimeout(() => setTranscription(null), 3000);
     }
   };
 
-  const stopListening = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsListening(false);
-  };
-
-  const processAudioInput = async (audioBlob: Blob) => {
-    if (!session) return;
-
-    setIsProcessing(true);
-
+  /* === 🚀 Start Voice Flow === */
+  const startVoiceAssistant = async () => {
     try {
-      const formData = new FormData();
-      formData.append('session_id', session.session_id);
-      formData.append('audio', audioBlob, 'voice_input.wav');
+      const res = await fetch("http://localhost:8000/voice/conversation/start/");
+      const data = await res.json();
 
-      const response = await fetch('http://localhost:8000/voice/process-input/', {
-        method: 'POST',
-        body: formData
-      });
+      if (data.session_id) setSessionId(data.session_id);
+      if (data.next?.play) await playPrompt(data.next.play);
 
-      if (!response.ok) {
-        throw new Error('Failed to process voice input');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        const transcription = data.transcribed_text;
-        const intent = data.intent?.name || 'unknown';
-        const response_text = data.response || '';
-
-        setLastTranscription(transcription);
-        
-        // Call callbacks
-        if (onTranscription) {
-          onTranscription(transcription);
-        }
-        
-        if (onVoiceCommand) {
-          onVoiceCommand(transcription, data.action || intent);
-        }
-
-        // Speak response if not muted
-        if (!isMuted && response_text) {
-          speakText(response_text);
-        }
-
-        setError('');
-      } else {
-        setError(data.error || 'Failed to process voice input');
-      }
-
-    } catch (error) {
-      console.error('Error processing voice input:', error);
-      setError('Failed to process voice command');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const processTextInput = async (text: string) => {
-    if (!session || !text.trim()) return;
-
-    setIsProcessing(true);
-
-    try {
-      const response = await fetch('http://localhost:8000/voice/process-input/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: session.session_id,
-          text: text
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to process text input');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        const intent = data.intent?.name || 'unknown';
-        const response_text = data.response || '';
-
-        setLastTranscription(text);
-        
-        if (onVoiceCommand) {
-          onVoiceCommand(text, data.action || intent);
-        }
-
-        // Speak response if not muted
-        if (!isMuted && response_text) {
-          speakText(response_text);
-        }
-
-        setError('');
-      } else {
-        setError(data.error || 'Failed to process text input');
-      }
-
-    } catch (error) {
-      console.error('Error processing text input:', error);
-      setError('Failed to process command');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const speakText = (text: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 0.8;
-      speechSynthesis.speak(utterance);
-    }
-  };
-
-  const handleVoiceToggle = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (!isMuted) {
-      // Stop any current speech
-      speechSynthesis.cancel();
+      setStage("conversation");
+      recordAnswer(data.session_id);
+    } catch (err) {
+      console.error("❌ Could not start conversation:", err);
+      setTranscription("⚠️ Could not start voice assistant.");
     }
   };
 
   return (
-    <div className="flex flex-col items-center space-y-2">
-      {/* Voice Control Buttons */}
-      <div className="flex items-center space-x-2">
-        {/* Main Voice Button */}
-        <button
-          onClick={handleVoiceToggle}
-          disabled={isProcessing || !session}
-          className={`
-            relative p-3 rounded-full transition-all duration-200 shadow-lg
-            ${isListening
-              ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-              : isProcessing
-              ? 'bg-yellow-500 animate-spin'
-              : 'bg-blue-500 hover:bg-blue-600'
-            }
-            ${!session ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}
-          `}
-          title={isListening ? 'Stop listening' : isProcessing ? 'Processing...' : 'Start voice command'}
-        >
-          {isListening ? (
-            <MicOff className="w-6 h-6 text-white" />
-          ) : (
-            <Mic className="w-6 h-6 text-white" />
-          )}
-          
-          {/* Recording indicator */}
-          {isListening && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping" />
-          )}
-        </button>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-center">
+      <button
+        onClick={() =>
+          stage === "idle" ? startVoiceAssistant() : recordAnswer()
+        }
+        disabled={listening || speaking}
+        className={`relative transition-all duration-300 backdrop-blur-sm border rounded-full p-3 ${
+          speaking
+            ? "bg-blue-500/20 border-blue-400"
+            : listening
+            ? "bg-red-500/20 border-red-400 scale-110 animate-pulse"
+            : "bg-white/10 border-white/20 hover:bg-white/20"
+        }`}
+      >
+        <Mic className={`w-5 h-5 ${listening ? "text-red-400" : "text-white"}`} />
+      </button>
 
-        {/* Mute/Unmute Button */}
-        <button
-          onClick={toggleMute}
-          className={`
-            p-2 rounded-full transition-all duration-200
-            ${isMuted ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-500 hover:bg-green-600'}
-          `}
-          title={isMuted ? 'Unmute responses' : 'Mute responses'}
-        >
-          {isMuted ? (
-            <VolumeX className="w-4 h-4 text-white" />
-          ) : (
-            <Volume2 className="w-4 h-4 text-white" />
-          )}
-        </button>
-      </div>
+      {/* 🌊 Siri-style Wave */}
+      {speaking && <SiriWave isActive={speaking} />}
 
-      {/* Status Display */}
-      <div className="text-center">
-        {isListening && (
-          <p className="text-green-400 text-sm font-medium animate-pulse">
-            Listening... (speak now)
+      {/* 📝 Live Transcription */}
+      {transcription && (
+        <div className="mt-2 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
+          <p className="text-white text-xs max-w-64 break-words">
+            {transcription}
           </p>
-        )}
-        
-        {isProcessing && (
-          <p className="text-yellow-400 text-sm font-medium">
-            Processing voice command...
-          </p>
-        )}
-        
-        {error && (
-          <p className="text-red-400 text-xs max-w-xs">
-            {error}
-          </p>
-        )}
-        
-        {lastTranscription && !isProcessing && !error && (
-          <p className="text-gray-300 text-xs max-w-xs">
-            "{lastTranscription}"
-          </p>
-        )}
-      </div>
-
-      {/* Quick Text Input for Testing */}
-      <div className="mt-2">
-        <input
-          type="text"
-          placeholder="Type a command..."
-          className="px-3 py-1 bg-black/50 text-white text-sm rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-          onKeyPress={(e) => {
-            if (e.key === 'Enter') {
-              const target = e.target as HTMLInputElement;
-              processTextInput(target.value);
-              target.value = '';
-            }
-          }}
-        />
-      </div>
+        </div>
+      )}
     </div>
   );
 };

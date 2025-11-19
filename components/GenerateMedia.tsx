@@ -24,7 +24,7 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
   const [reportUrl, setReportUrl] = useState<string | null>(null);
   const [podcastUrl, setPodcastUrl] = useState<string | null>(null);
 
-  // 🔹 Génération du Report
+  // Génération du Report
   const handleGenerateReport = async () => {
     if (!selectedCountry || selectedRisks.length === 0 || !year) return;
     if (selectedRisks.length > 3) {
@@ -57,7 +57,7 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
     }
   };
 
-  // 🔹 Téléchargement du Report
+  // Téléchargement du Report
   const handleDownloadReport = () => {
     if (!reportUrl) return;
     const link = document.createElement('a');
@@ -68,7 +68,7 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
     document.body.removeChild(link);
   };
 
-  // 🔹 Génération du Podcast
+  //  Génération du Podcast
   const handleGeneratePodcast = async () => {
     if (!selectedCountry || selectedRisks.length === 0 || !year) return;
     setLoading(true);
@@ -97,7 +97,7 @@ export const GeneratedMedia: React.FC<GeneratedMediaProps> = ({
     }
   };
 
-  // 🔹 Ajout en bibliothèque (dummy)
+  //  Ajout en bibliothèque (dummy)
   const handleAddToLibrary = (type: string) => {
     console.log(`Add to library: ${type}`);
   };
