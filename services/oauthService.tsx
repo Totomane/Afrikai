@@ -121,12 +121,16 @@ export const disconnectAccount = async (provider: string): Promise<boolean> => {
 };
 
 /**
- * Start OAuth flow for a provider
+ * Start OAuth flow for a provider (deprecated - use authService.startOAuthFlow instead)
+ * @deprecated Use startOAuthFlow from authService instead
  */
 export const startOAuthFlow = (platform: string): Promise<boolean> => {
+  // Import and use the new auth service function
+  console.warn('oauthService.startOAuthFlow is deprecated. Use authService.startOAuthFlow instead.');
+  
   return new Promise((resolve) => {
     const provider = platform.toLowerCase();
-    const backendUrl = "http://localhost:8000"; // your Django backend
+    const backendUrl = API_BASE || "http://localhost:8000";
     const authUrl = `${backendUrl}/oauth/${provider}/start/`;
     
     console.log(`[OAuth Service] Starting OAuth flow for ${provider}`);
@@ -149,12 +153,7 @@ export const startOAuthFlow = (platform: string): Promise<boolean> => {
     const handler = (event: MessageEvent) => {
       console.log(`[OAuth Service] Received message:`, event.data, 'from origin:', event.origin);
       
-      if (event.origin !== window.location.origin) {
-        console.log(`[OAuth Service] Message from different origin, ignoring`);
-        return;
-      }
-      
-      if (event.data?.type === "oauth-success" && event.data?.provider === provider) {
+      if (event.data === "oauth-success") {
         console.log(`[OAuth Service] OAuth success message received for ${provider}`);
         window.removeEventListener("message", handler);
         popup?.close();

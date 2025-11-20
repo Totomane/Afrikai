@@ -15,14 +15,16 @@ import {
   startOAuthFlow, 
   disconnectAccount 
 } from '../services/oauthService';
-import { LoginForm } from './loginForm';
-import { RegisterForm } from './RegisterForm';
+import { LoginPage } from '../pages/auth/LoginPage';
+import { SignupPage } from '../pages/auth/SignupPage';
+import { useAuth } from './context/authContext';
 
 interface UserSidebarProps {
   className?: string;
 }
 
 export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
+  const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaResponse>({
     reports: [],
@@ -205,42 +207,48 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
         overflow-hidden
       `}>
         <div className="pt-20 px-6 h-full flex flex-col">
-          {/* Login/Signup Buttons */}
-          <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
-            <div className="flex space-x-3">
-              <button
-                onClick={() => setShowLoginPopup(true)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
-                <span>Login</span>
-              </button>
-              <button
-                onClick={() => setShowSignupPopup(true)}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-                <span>Sign Up</span>
-              </button>
+          {/* Login/Signup Buttons - only show when not authenticated */}
+          {!user && (
+            <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowLoginPopup(true)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Login</span>
+                </button>
+                <button
+                  onClick={() => setShowSignupPopup(true)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                  <span>Sign Up</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* User Profile Section */}
-          <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">U</span>
-              </div>
-              <div>
-                <h3 className="text-white font-semibold text-lg">User Name</h3>
-                <p className="text-gray-300 text-sm">Premium Member</p>
+          {/* User Profile Section - only show when authenticated */}
+          {user && (
+            <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.2s' }}>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
+                    {user.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{user.username}</h3>
+                  <p className="text-gray-300 text-sm">{user.email || 'Member'}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Tab Navigation */}
           <div className="mb-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
@@ -498,11 +506,14 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
             )}
           </div>
 
-          {/* Footer */}
-          {activeTab === 'navigation' && (
+          {/* Footer - only show logout when authenticated */}
+          {activeTab === 'navigation' && user && (
             <div className="absolute bottom-6 left-6 right-6 opacity-0 animate-fadeIn" style={{ animationDelay: '0.9s' }}>
               <div className="border-t border-gray-700 pt-4">
-                <button className="w-full flex items-center space-x-3 text-gray-300 hover:text-red-400 transition-colors duration-200 group">
+                <button 
+                  onClick={logout}
+                  className="w-full flex items-center space-x-3 text-gray-300 hover:text-red-400 transition-colors duration-200 group"
+                >
                   <svg className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5z"/>
                   </svg>
@@ -517,16 +528,20 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
       {/* Login Popup */}
       {showLoginPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="relative max-w-md w-full">
-            <button
-              onClick={() => setShowLoginPopup(false)}
-              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center z-10 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <LoginForm onSuccess={() => setShowLoginPopup(false)} />
+          <div className="relative max-w-2xl w-full max-h-[90vh]">
+            <div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto relative">
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={() => setShowLoginPopup(false)}
+                  className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors duration-200"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <LoginPage onSuccess={() => setShowLoginPopup(false)} />
+            </div>
           </div>
         </div>
       )}
@@ -534,16 +549,20 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
       {/* Signup Popup */}
       {showSignupPopup && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-          <div className="relative max-w-md w-full">
-            <button
-              onClick={() => setShowSignupPopup(false)}
-              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center z-10 transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <RegisterForm onSuccess={() => setShowSignupPopup(false)} />
+          <div className="relative max-w-2xl w-full max-h-[90vh]">
+            <div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto relative">
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={() => setShowSignupPopup(false)}
+                  className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors duration-200"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <SignupPage onSuccess={() => setShowSignupPopup(false)} />
+            </div>
           </div>
         </div>
       )}

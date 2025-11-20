@@ -3,14 +3,44 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { LoginForm } from '../loginForm';
 import { RegisterForm } from '../RegisterForm';
+import { PasswordResetForm } from '../PasswordResetForm';
+
+export type AuthView = 'login' | 'register' | 'reset';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialView?: AuthView;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [showLogin, setShowLogin] = useState(true);
+export const AuthModal: React.FC<AuthModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  initialView = 'login' 
+}) => {
+  const [currentView, setCurrentView] = useState<AuthView>(initialView);
+
+  const handleSuccess = () => {
+    onClose();
+  };
+
+  const getTitle = () => {
+    switch (currentView) {
+      case 'login': return 'Welcome Back';
+      case 'register': return 'Get Started';
+      case 'reset': return 'Reset Password';
+      default: return 'Authentication';
+    }
+  };
+
+  const getSubtitle = () => {
+    switch (currentView) {
+      case 'login': return 'Sign in to access your dashboard';
+      case 'register': return 'Create your account to begin exploring';
+      case 'reset': return 'Enter your email to reset your password';
+      default: return '';
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -41,40 +71,74 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  {showLogin ? 'Welcome Back' : 'Get Started'}
+                  {getTitle()}
                 </h2>
                 <p className="text-gray-600">
-                  {showLogin
-                    ? 'Sign in to access your dashboard'
-                    : 'Create your account to begin exploring'}
+                  {getSubtitle()}
                 </p>
               </div>
 
-              <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
-                <button
-                  onClick={() => setShowLogin(true)}
-                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                    showLogin
-                      ? 'bg-white text-blue-600 shadow-md'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={() => setShowLogin(false)}
-                  className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                    !showLogin
-                      ? 'bg-white text-blue-600 shadow-md'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Sign Up
-                </button>
-              </div>
+              {/* Tab switcher - only show for login/register */}
+              {currentView !== 'reset' && (
+                <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+                  <button
+                    onClick={() => setCurrentView('login')}
+                    className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                      currentView === 'login'
+                        ? 'bg-white text-blue-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('register')}
+                    className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${
+                      currentView === 'register'
+                        ? 'bg-white text-blue-600 shadow-md'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-4">
-                {showLogin ? <LoginForm /> : <RegisterForm />}
+                {currentView === 'login' && (
+                  <div>
+                    <LoginForm onSuccess={handleSuccess} />
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={() => setCurrentView('reset')}
+                        className="text-sm text-blue-600 hover:text-blue-700 underline"
+                      >
+                        Forgot your password?
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {currentView === 'register' && (
+                  <RegisterForm onSuccess={handleSuccess} />
+                )}
+                
+                {currentView === 'reset' && (
+                  <div>
+                    <PasswordResetForm 
+                      onSuccess={() => setCurrentView('login')}
+                      onCancel={() => setCurrentView('login')}
+                    />
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={() => setCurrentView('login')}
+                        className="text-sm text-gray-600 hover:text-gray-700"
+                      >
+                        ← Back to Sign In
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 pt-6 border-t border-gray-200 text-center">
