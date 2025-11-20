@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { motion } from "framer-motion";
 import { GlobeMap, GlobeMapRef } from "./components/GlobeMap";
 import { Overlay } from "./components/Header";
 import { ResetViewButton } from "./components/ResetViewButton";
@@ -7,6 +8,8 @@ import { TimeSlider } from "./components/TimeSlider";
 import { GeneratedMedia } from "./components/GenerateMedia";
 import { UserSidebar } from "./components/UserSidebar";
 import { VoiceNavigationButton } from "./components/VoiceNavigationButton";
+import { useAuth } from "./components/context/authContext";
+import { LandingPage } from "./components/LandingPage";
 
 interface CountryData {
   properties: {
@@ -17,7 +20,8 @@ interface CountryData {
   geometry: any;
 }
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
+  const { user, logout } = useAuth();
   const [selectedCountry, setSelectedCountry] = useState<CountryData | null>(null);
   const [zoomedCountry, setZoomedCountry] = useState<CountryData | null>(null);
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
@@ -65,7 +69,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="relative w-full h-screen overflow-hidden bg-black"
+    >
       {/* Globe */}
       <GlobeMap
         ref={globeMapRef}
@@ -85,6 +94,22 @@ const App: React.FC = () => {
       )}
       
       <UserSidebar />
+
+      {/* User info and logout - only show when authenticated */}
+      {user && (
+        <div className="absolute top-4 right-4 z-50 bg-black/80 text-white px-4 py-3 rounded-lg flex items-center gap-3">
+          <div>
+            <p className="text-sm font-semibold">{user.username}</p>
+            {user.email && <p className="text-xs text-gray-300">{user.email}</p>}
+          </div>
+          <button
+            onClick={logout}
+            className="text-xs px-3 py-1 bg-red-600 hover:bg-red-700 rounded"
+          >
+            Logout
+          </button>
+        </div>
+      )}
 
       {/* Reset view button */}
       {zoomedCountry && (
@@ -119,8 +144,46 @@ const App: React.FC = () => {
         selectedRisks={selectedRisks}
         year={year}
       />
-    </div>
+    </motion.div>
   );
+};
+
+const App: React.FC = () => {
+  const [showLandingPage, setShowLandingPage] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const handleGetStarted = async () => {
+    setIsTransitioning(true);
+    // Add a nice animation delay
+    setTimeout(() => {
+      setShowLandingPage(false);
+      setIsTransitioning(false);
+    }, 800);
+  };
+
+  // Show transition animation
+  if (isTransitioning) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        <div className="relative z-10 text-white text-center">
+          <div className="w-20 h-20 border-4 border-blue-300 border-t-white rounded-full animate-spin mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold mb-2">Loading AfrikAI Platform</h2>
+          <p className="text-blue-200">Preparing your risk intelligence dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show landing page or main app
+  if (showLandingPage) {
+    return <LandingPage onGetStarted={handleGetStarted} />;
+  }
+
+  return <MainApp />;
 };
 
 export default App;
