@@ -10,21 +10,21 @@ import {
   formatFileSize, 
   formatDate 
 } from '../services/mediaService';
-import { 
-  fetchConnectedAccounts, 
-  startOAuthFlow, 
-  disconnectAccount 
-} from '../services/oauthService';
+
 import { LoginPage } from '../pages/auth/LoginPage';
 import { SignupPage } from '../pages/auth/SignupPage';
 import { useAuth } from './context/authContext';
+import { useToast } from './ui/Toast';
+import { SocialShareModal } from './ui/SocialShareModal';
+import { shareToSocialMedia, SocialShareData } from '../services/socialShareService';
 
 interface UserSidebarProps {
   className?: string;
 }
 
 export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, connectedProviders, connectOAuthProvider, disconnectOAuthProvider, refreshConnectedProviders, csrfToken } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaResponse>({
     reports: [],
@@ -34,9 +34,19 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'navigation' | 'media'>('navigation');
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [showSignupPopup, setShowSignupPopup] = useState(false);
+  const [socialShareMenu, setSocialShareMenu] = useState<{fileId: string, isOpen: boolean}>({ fileId: '', isOpen: false });
+  const [socialShareModal, setSocialShareModal] = useState<{isOpen: boolean, file: MediaFile | null, platform: string}>({ isOpen: false, file: null, platform: '' });
+  
+  // Debug: Log modal state changes (only when meaningful)
+  React.useEffect(() => {
+    if (socialShareModal.isOpen && socialShareModal.file) {
+      console.log(`[MODAL] Opening ${socialShareModal.platform} modal for ${socialShareModal.file.name}`);
+    } else if (!socialShareModal.isOpen && !socialShareModal.file) {
+      console.log(`[MODAL] Modal closed`);
+    }
+  }, [socialShareModal]);
 
   const handleMouseEnter = () => {
     setIsOpen(true);
@@ -53,22 +63,29 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
     }
   }, [isOpen, activeTab]);
 
-  // Load connected accounts when component mounts
+  // Refresh connected accounts when user first logs in
   useEffect(() => {
-    loadConnectedAccounts();
-  }, []);
-
-  const loadConnectedAccounts = async () => {
-    console.log('[OAuth] Loading connected accounts from backend...');
-    try {
-      const accounts = await fetchConnectedAccounts();
-      console.log('[OAuth] Received connected accounts from backend:', accounts);
-      setConnectedProviders(accounts);
-      console.log('[OAuth] Updated connectedProviders state:', accounts);
-    } catch (error) {
-      console.error('[OAuth] Failed to load connected accounts:', error);
+    if (user) {
+      refreshConnectedProviders();
     }
-  };
+  }, [user?.id, refreshConnectedProviders]); // Only run when user ID changes
+
+  // Close social share menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (socialShareMenu.isOpen) {
+        setSocialShareMenu({ fileId: '', isOpen: false });
+      }
+    };
+
+    if (socialShareMenu.isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [socialShareMenu.isOpen]);
 
   const loadMediaFiles = async () => {
     setLoading(true);
@@ -76,7 +93,7 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
       const files = await fetchMediaFiles();
       setMediaFiles(files);
     } catch (error) {
-      console.error('Failed to load media files:', error);
+      console.error('[DEBUG] Failed to load media files:', error);
     } finally {
       setLoading(false);
     }
@@ -103,35 +120,108 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
     }
   };
 
+  const handleShareToSocial = (file: MediaFile, platform: string) => {
+    console.log(`[SHARE] Opening ${platform} in new tab for file: ${file.name}`);
+    console.log(`[SHARE] File details:`, { id: file.id, name: file.name, type: file.type, url: file.url });
+    
+    // Close the dropdown menu
+    setSocialShareMenu({ fileId: '', isOpen: false });
+    
+    // Create sharing URL with file data as query parameters
+    const shareData = {
+      fileName: file.name,
+      fileType: file.type,
+      fileUrl: file.url,
+      fileId: file.id,
+      platform: platform.toLowerCase()
+    };
+    
+    const queryParams = new URLSearchParams({
+      data: JSON.stringify(shareData)
+    });
+    
+    // Open in new tab with share form
+    const shareUrl = `/share?${queryParams.toString()}`;
+    console.log(`[SHARE] Opening URL in new tab:`, shareUrl);
+    console.log(`[SHARE] Share data being passed:`, shareData);
+    console.log(`[SHARE] Query parameters:`, queryParams.toString());
+    
+    try {
+      const newWindow = window.open(shareUrl, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+      if (newWindow) {
+        console.log(`[SHARE] New tab opened successfully for ${platform}`);
+      } else {
+        console.error(`[SHARE] Failed to open new tab - popup blocked?`);
+      }
+    } catch (error) {
+      console.error(`[SHARE] Error opening new tab:`, error);
+    }
+  };
+
+  const handleSocialShareSubmit = async (platform: string, shareData: SocialShareData) => {
+    if (!socialShareModal.file || !csrfToken) {
+      console.error(`[SHARE] Missing required data for ${platform} share`);
+      showError('Share Error', 'Missing required data for sharing');
+      return;
+    }
+
+    try {
+      console.log(`[SHARE] Submitting to ${platform}...`);
+      const result = await shareToSocialMedia(platform, socialShareModal.file, shareData, csrfToken);
+      
+      if (result.success) {
+        console.log(`[SHARE] ${platform} share successful`);
+        showSuccess('Content Shared!', result.message || `Successfully shared to ${platform}`);
+        setSocialShareModal({ isOpen: false, file: null, platform: '' });
+      } else {
+        console.error(`[SHARE] ${platform} share failed:`, result.message);
+        showError('Share Failed', result.message || `Failed to share to ${platform}`);
+      }
+    } catch (error) {
+      console.error(`[SHARE] ${platform} error:`, error);
+      showError('Share Error', 'An unexpected error occurred while sharing');
+    }
+  };
+
+  const toggleSocialShareMenu = (fileId: string) => {
+    console.log(`[MENU TOGGLE] Toggling social menu for file: ${fileId}`);
+    setSocialShareMenu(prev => {
+      const newState = {
+        fileId: fileId,
+        isOpen: prev.fileId === fileId ? !prev.isOpen : true
+      };
+      console.log(`[MENU TOGGLE] New menu state:`, newState);
+      return newState;
+    });
+  };
+
   const handleConnectAccount = async (platform: string) => {
     const provider = platform.toLowerCase();
     
     console.log(`[OAuth] Starting connection process for ${platform} (${provider})`);
-    console.log(`[OAuth] Current connected providers:`, connectedProviders);
     
     // Don't allow connecting if already connected
     if (connectedProviders.includes(provider)) {
       console.log(`[OAuth] ${provider} is already connected, skipping`);
+      showError('Already Connected', `Your ${platform} account is already connected.`);
       return;
     }
     
     try {
       console.log(`[OAuth] Initiating OAuth flow for ${provider}...`);
-      const success = await startOAuthFlow(platform);
+      const success = await connectOAuthProvider(platform);
       console.log(`[OAuth] OAuth flow result for ${provider}:`, success);
       
       if (success) {
-        console.log(`[OAuth] ${provider} connection successful, reloading accounts...`);
-        // Reload connected accounts from backend to get fresh state
-        await loadConnectedAccounts();
-        console.log(`[OAuth] Account reload complete for ${provider}`);
+        console.log(`[OAuth] ${provider} connection successful!`);
+        showSuccess('Account Connected!', `Your ${platform} account has been successfully connected.`);
       } else {
         console.log(`[OAuth] ${provider} connection failed or was cancelled`);
+        showError('Connection Failed', `Failed to connect to ${platform}. Please try again.`);
       }
     } catch (error) {
       console.error(`[OAuth] Error connecting ${provider}:`, error);
-      // You could show a toast notification here
-      alert(`Failed to connect to ${platform}. Please try again.`);
+      showError('Connection Error', `Failed to connect to ${platform}. Please try again.`);
     }
   };
 
@@ -139,25 +229,22 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
     const provider = platform.toLowerCase();
     
     console.log(`[OAuth] Starting disconnection process for ${platform} (${provider})`);
-    console.log(`[OAuth] Current connected providers before disconnect:`, connectedProviders);
     
     try {
       console.log(`[OAuth] Calling backend disconnect for ${provider}...`);
-      const success = await disconnectAccount(provider);
+      const success = await disconnectOAuthProvider(provider);
       console.log(`[OAuth] Backend disconnect result for ${provider}:`, success);
       
       if (success) {
-        console.log(`[OAuth] ${provider} disconnected successfully, updating local state...`);
-        // Remove from local state
-        const updatedProviders = connectedProviders.filter(p => p !== provider);
-        setConnectedProviders(updatedProviders);
-        console.log(`[OAuth] Updated connectedProviders after disconnect:`, updatedProviders);
+        console.log(`[OAuth] ${provider} disconnected successfully!`);
+        showSuccess('Account Disconnected', `Your ${platform} account has been disconnected.`);
       } else {
         console.log(`[OAuth] Failed to disconnect ${provider} - backend returned false`);
+        showError('Disconnection Failed', `Failed to disconnect from ${platform}. Please try again.`);
       }
     } catch (error) {
       console.error(`[OAuth] Error disconnecting ${provider}:`, error);
-      alert(`Failed to disconnect from ${platform}. Please try again.`);
+      showError('Disconnection Error', `Failed to disconnect from ${platform}. Please try again.`);
     }
   };
 
@@ -318,12 +405,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                         {connectedProviders.includes('linkedin') ? (
                           <button
                             onClick={() => handleDisconnectAccount('LinkedIn')}
-                            className="flex items-center justify-center w-10 h-10 bg-green-600 hover:bg-red-600 rounded-full transition-colors duration-200"
-                            title="Connected - Click to disconnect"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-red-600 text-white text-sm rounded-md transition-colors duration-200 flex items-center space-x-1"
+                            title="Click to disconnect"
                           >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                             </svg>
+                            <span>Connected</span>
                           </button>
                         ) : (
                           <button
@@ -346,12 +434,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                         {connectedProviders.includes('youtube') ? (
                           <button
                             onClick={() => handleDisconnectAccount('YouTube')}
-                            className="flex items-center justify-center w-10 h-10 bg-green-600 hover:bg-red-600 rounded-full transition-colors duration-200"
-                            title="Connected - Click to disconnect"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-red-600 text-white text-sm rounded-md transition-colors duration-200 flex items-center space-x-1"
+                            title="Click to disconnect"
                           >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                             </svg>
+                            <span>Connected</span>
                           </button>
                         ) : (
                           <button
@@ -374,12 +463,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                         {connectedProviders.includes('spotify') ? (
                           <button
                             onClick={() => handleDisconnectAccount('Spotify')}
-                            className="flex items-center justify-center w-10 h-10 bg-green-600 hover:bg-red-600 rounded-full transition-colors duration-200"
-                            title="Connected - Click to disconnect"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-red-600 text-white text-sm rounded-md transition-colors duration-200 flex items-center space-x-1"
+                            title="Click to disconnect"
                           >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                             </svg>
+                            <span>Connected</span>
                           </button>
                         ) : (
                           <button
@@ -402,12 +492,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                         {connectedProviders.includes('x') ? (
                           <button
                             onClick={() => handleDisconnectAccount('X')}
-                            className="flex items-center justify-center w-10 h-10 bg-green-600 hover:bg-red-600 rounded-full transition-colors duration-200"
-                            title="Connected - Click to disconnect"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-red-600 text-white text-sm rounded-md transition-colors duration-200 flex items-center space-x-1"
+                            title="Click to disconnect"
                           >
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                             </svg>
+                            <span>Connected</span>
                           </button>
                         ) : (
                           <button
@@ -475,9 +566,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                     <MediaSection
                       title="PDF Reports"
                       files={mediaFiles.reports}
+                      connectedProviders={connectedProviders}
+                      socialShareMenu={socialShareMenu}
                       onDownload={handleDownload}
                       onOpenInTab={handleOpenInTab}
                       onDelete={handleDelete}
+                      onShareToSocial={handleShareToSocial}
+                      onToggleSocialMenu={toggleSocialShareMenu}
                       emptyMessage="No reports generated yet"
                     />
 
@@ -485,9 +580,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                     <MediaSection
                       title="Audio Podcasts"
                       files={mediaFiles.podcasts}
+                      connectedProviders={connectedProviders}
+                      socialShareMenu={socialShareMenu}
                       onDownload={handleDownload}
                       onOpenInTab={handleOpenInTab}
                       onDelete={handleDelete}
+                      onShareToSocial={handleShareToSocial}
+                      onToggleSocialMenu={toggleSocialShareMenu}
                       emptyMessage="No podcasts generated yet"
                     />
 
@@ -495,9 +594,13 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
                     <MediaSection
                       title="Videos"
                       files={mediaFiles.videos}
+                      connectedProviders={connectedProviders}
+                      socialShareMenu={socialShareMenu}
                       onDownload={handleDownload}
                       onOpenInTab={handleOpenInTab}
                       onDelete={handleDelete}
+                      onShareToSocial={handleShareToSocial}
+                      onToggleSocialMenu={toggleSocialShareMenu}
                       emptyMessage="Video generation coming soon..."
                     />
                   </div>
@@ -566,6 +669,25 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
           </div>
         </div>
       )}
+      
+      {/* Social Share Modal */}
+      {(() => {
+        const shouldRender = socialShareModal.file && socialShareModal.isOpen;
+        return shouldRender ? (
+          <SocialShareModal
+            isOpen={socialShareModal.isOpen}
+            onClose={() => {
+              console.log(`[MODAL] Closing modal`);
+              setSocialShareModal({ isOpen: false, file: null, platform: '' });
+            }}
+            file={socialShareModal.file}
+            platform={socialShareModal.platform}
+            onSubmit={handleSocialShareSubmit}
+          />
+        ) : null;
+      })()}
+      
+
     </div>
   );
 };
@@ -597,18 +719,26 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, text, delay, onClick }) => {
 interface MediaSectionProps {
   title: string;
   files: MediaFile[];
+  connectedProviders: string[];
+  socialShareMenu: {fileId: string, isOpen: boolean};
   onDownload: (file: MediaFile) => void;
   onOpenInTab: (file: MediaFile) => void;
   onDelete: (fileId: string) => void;
+  onShareToSocial: (file: MediaFile, platform: string) => void;
+  onToggleSocialMenu: (fileId: string) => void;
   emptyMessage: string;
 }
 
 const MediaSection: React.FC<MediaSectionProps> = ({
   title,
   files,
+  connectedProviders,
+  socialShareMenu,
   onDownload,
   onOpenInTab,
   onDelete,
+  onShareToSocial,
+  onToggleSocialMenu,
   emptyMessage,
 }) => {
   return (
@@ -630,9 +760,13 @@ const MediaSection: React.FC<MediaSectionProps> = ({
             <MediaFileItem
               key={file.id}
               file={file}
+              connectedProviders={connectedProviders}
+              socialShareMenu={socialShareMenu}
               onDownload={() => onDownload(file)}
               onOpenInTab={() => onOpenInTab(file)}
               onDelete={() => onDelete(file.id)}
+              onShareToSocial={(platform) => onShareToSocial(file, platform)}
+              onToggleSocialMenu={() => onToggleSocialMenu(file.id)}
             />
           ))}
         </div>
@@ -644,16 +778,24 @@ const MediaSection: React.FC<MediaSectionProps> = ({
 // Media File Item Component
 interface MediaFileItemProps {
   file: MediaFile;
+  connectedProviders: string[];
+  socialShareMenu: {fileId: string, isOpen: boolean};
   onDownload: () => void;
   onOpenInTab: () => void;
   onDelete: () => void;
+  onShareToSocial: (platform: string) => void;
+  onToggleSocialMenu: () => void;
 }
 
 const MediaFileItem: React.FC<MediaFileItemProps> = ({
   file,
+  connectedProviders,
+  socialShareMenu,
   onDownload,
   onOpenInTab,
   onDelete,
+  onShareToSocial,
+  onToggleSocialMenu,
 }) => {
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -692,9 +834,13 @@ const MediaFileItem: React.FC<MediaFileItemProps> = ({
             {getFileIcon(file.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">
+            <button 
+              onClick={onOpenInTab}
+              className="text-white text-sm font-medium truncate hover:text-blue-400 transition-colors cursor-pointer text-left w-full max-w-[200px]"
+              title={`${file.name} - Click to open in new tab`}
+            >
               {file.name}
-            </p>
+            </button>
             <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
               <span>{formatFileSize(file.size)}</span>
               <span>•</span>
@@ -716,16 +862,116 @@ const MediaFileItem: React.FC<MediaFileItemProps> = ({
         
         {/* Action Buttons */}
         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {/* Open in Tab */}
-          <button
-            onClick={onOpenInTab}
-            className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-all duration-200"
-            title="Open in new tab"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-          </button>
+          {/* Social Share */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                console.log('[SHARE BUTTON] Share dropdown button clicked');
+                onToggleSocialMenu();
+              }}
+              className="p-1.5 text-gray-400 hover:text-purple-400 hover:bg-purple-400/10 rounded transition-all duration-200"
+              title="Share to social media"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              </svg>
+            </button>
+            
+            {/* Social Share Dropdown Menu */}
+            {socialShareMenu.isOpen && socialShareMenu.fileId === file.id && (
+              <div 
+                className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl min-w-[180px]"
+                style={{
+                  position: 'absolute',
+                  zIndex: 99999,
+                  pointerEvents: 'auto'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-2">
+                  <div className="text-xs text-gray-400 mb-2 px-2">Share to:</div>
+                  {connectedProviders.length === 0 ? (
+                    <div className="text-xs text-gray-500 px-2 py-1">No connected accounts</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {connectedProviders.includes('linkedin') && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[SOCIAL CLICK] LinkedIn button clicked!');
+                            console.log('[SOCIAL SELECT] Selected platform: LinkedIn');
+                            onShareToSocial('linkedin');
+                          }}
+                          className="w-full flex items-center space-x-2 px-2 py-1.5 text-sm text-white hover:bg-blue-600/20 rounded transition-colors cursor-pointer bg-blue-600/10"
+                        >
+                          <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                          </svg>
+                          <span>LinkedIn</span>
+                        </button>
+                      )}
+                      {connectedProviders.includes('youtube') && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[SOCIAL CLICK] YouTube button clicked!');
+                            console.log('[SOCIAL SELECT] Selected platform: YouTube');
+                            onShareToSocial('youtube');
+                          }}
+                          className="w-full flex items-center space-x-2 px-2 py-1.5 text-sm text-white hover:bg-red-600/20 rounded transition-colors cursor-pointer bg-red-600/10"
+                        >
+                          <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                          </svg>
+                          <span>YouTube</span>
+                        </button>
+                      )}
+                      {connectedProviders.includes('spotify') && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[SOCIAL CLICK] Spotify button clicked!');
+                            console.log('[SOCIAL SELECT] Selected platform: Spotify');
+                            onShareToSocial('spotify');
+                          }}
+                          className="w-full flex items-center space-x-2 px-2 py-1.5 text-sm text-white hover:bg-green-600/20 rounded transition-colors cursor-pointer bg-green-600/10"
+                        >
+                          <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
+                          </svg>
+                          <span>Spotify</span>
+                        </button>
+                      )}
+                      {connectedProviders.includes('twitter') && (
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            console.log('[SOCIAL CLICK] Twitter button clicked!');
+                            console.log('[SOCIAL SELECT] Selected platform: Twitter');
+                            onShareToSocial('twitter');
+                          }}
+                          className="w-full flex items-center space-x-2 px-2 py-1.5 text-sm text-white hover:bg-blue-400/20 rounded transition-colors cursor-pointer bg-blue-400/10"
+                        >
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                          </svg>
+                          <span>X (Twitter)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* Download */}
           <button

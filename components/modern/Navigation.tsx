@@ -19,6 +19,18 @@ export const Navigation: React.FC<NavigationProps> = ({ onGetStarted }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offsetTop = element.offsetTop - 80; // Account for fixed navbar height
+      window.scrollTo({
+        top: offsetTop,
+        behavior: 'smooth'
+      });
+    }
+    setMobileMenuOpen(false); // Close mobile menu if open
+  };
+
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -42,18 +54,30 @@ export const Navigation: React.FC<NavigationProps> = ({ onGetStarted }) => {
           </div>
 
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className={`font-medium hover:text-blue-600 transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}>
+            <button 
+              onClick={() => scrollToSection('features')}
+              className={`font-medium hover:text-blue-600 transition-colors cursor-pointer ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}
+            >
               Features
-            </a>
-            <a href="#product" className={`font-medium hover:text-blue-600 transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}>
+            </button>
+            <button 
+              onClick={() => scrollToSection('product')}
+              className={`font-medium hover:text-blue-600 transition-colors cursor-pointer ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}
+            >
               Product
-            </a>
-            <a href="#pricing" className={`font-medium hover:text-blue-600 transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}>
+            </button>
+            <button 
+              onClick={() => scrollToSection('pricing')}
+              className={`font-medium hover:text-blue-600 transition-colors cursor-pointer ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}
+            >
               Pricing
-            </a>
-            <a href="#security" className={`font-medium hover:text-blue-600 transition-colors ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}>
+            </button>
+            <button 
+              onClick={() => scrollToSection('security')}
+              className={`font-medium hover:text-blue-600 transition-colors cursor-pointer ${scrolled ? 'text-gray-700' : 'text-gray-700'}`}
+            >
               Security
-            </a>
+            </button>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
@@ -85,10 +109,10 @@ export const Navigation: React.FC<NavigationProps> = ({ onGetStarted }) => {
             className="md:hidden pt-4 pb-2"
           >
             <div className="flex flex-col gap-4">
-              <a href="#features" className="text-gray-700 font-medium py-2">Features</a>
-              <a href="#product" className="text-gray-700 font-medium py-2">Product</a>
-              <a href="#pricing" className="text-gray-700 font-medium py-2">Pricing</a>
-              <a href="#security" className="text-gray-700 font-medium py-2">Security</a>
+              <button onClick={() => scrollToSection('features')} className="text-gray-700 font-medium py-2 text-left">Features</button>
+              <button onClick={() => scrollToSection('product')} className="text-gray-700 font-medium py-2 text-left">Product</button>
+              <button onClick={() => scrollToSection('pricing')} className="text-gray-700 font-medium py-2 text-left">Pricing</button>
+              <button onClick={() => scrollToSection('security')} className="text-gray-700 font-medium py-2 text-left">Security</button>
               <button
                 onClick={onGetStarted}
                 className="px-6 py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-all"

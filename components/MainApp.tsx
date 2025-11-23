@@ -68,14 +68,6 @@ export const MainApp: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    // Navigate to landing page
-    if ((window as any).navigate) {
-      (window as any).navigate('landing');
-    }
-  };
-
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -102,22 +94,6 @@ export const MainApp: React.FC = () => {
       )}
       
       <UserSidebar />
-
-      {/* User info and logout - only show when authenticated */}
-      {user && (
-        <div className="absolute top-4 right-4 z-50 bg-black/80 backdrop-blur-sm text-white px-4 py-3 rounded-lg flex items-center gap-3 border border-blue-500/30">
-          <div>
-            <p className="text-sm font-semibold">{user.username}</p>
-            {user.email && <p className="text-xs text-gray-300">{user.email}</p>}
-          </div>
-          <button
-            onClick={handleLogout}
-            className="text-xs px-3 py-1 bg-red-600 hover:bg-red-700 rounded transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      )}
 
       {/* Reset view button */}
       {zoomedCountry && (

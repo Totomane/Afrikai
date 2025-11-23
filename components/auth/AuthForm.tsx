@@ -85,6 +85,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
+    console.log('[FORM] Submitting:', title);
+    
     // Mark all fields as touched
     const allTouched: Record<string, boolean> = {};
     fields.forEach(field => {
@@ -104,7 +106,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
     setValidationErrors(fieldErrors);
 
     if (fieldErrors.length === 0) {
-      await onSubmit(formData);
+      try {
+        await onSubmit(formData);
+      } catch (error) {
+        console.error('[FORM] Submit error:', error);
+      }
+    } else {
+      console.log('[FORM] Validation failed:', fieldErrors.length, 'errors');
     }
   };
 

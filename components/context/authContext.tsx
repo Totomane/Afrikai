@@ -1,5 +1,5 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { 
   AuthUser, 
   login as apiLogin, 
@@ -67,23 +67,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     init();
   }, []);
 
-  const loadConnectedProviders = async () => {
+  const loadConnectedProviders = useCallback(async () => {
     try {
       const providers = await fetchConnectedAccounts();
       setConnectedProviders(providers);
     } catch (err) {
       console.error('Failed to load connected providers', err);
     }
-  };
+  }, []);
 
-  const refreshCSRFToken = async () => {
+  const refreshCSRFToken = useCallback(async () => {
     const token = await fetchCSRFToken();
     setCSRFToken(token);
-  };
+  }, []);
 
-  const refreshConnectedProviders = async () => {
+  const refreshConnectedProviders = useCallback(async () => {
     await loadConnectedProviders();
-  };
+  }, []);
 
   const handleLogin = async (username: string, password: string) => {
     if (!csrfToken) {

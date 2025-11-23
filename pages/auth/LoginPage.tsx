@@ -40,10 +40,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!loading && user) {
-      navigate('dashboard');
+    if (!loading && user && !onSuccess) {
+      navigate('app');
     }
-  }, [user, loading]);
+  }, [user, loading, onSuccess]);
 
   const handleSubmit = async (formData: Record<string, string>) => {
     setIsLoading(true);
@@ -53,16 +53,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
       const result = await login(formData.username, formData.password);
       
       if (result.success) {
+        console.log('[LOGIN PAGE] Success');
         showSuccess('Welcome back!', 'You have been successfully logged in.');
         
         // Call success callback if provided (for modal usage)
         if (onSuccess) {
           onSuccess();
         } else {
-          // Redirect to dashboard only if not used as modal
-          navigate('dashboard');
+          // Redirect to app only if not used as modal
+          navigate('app');
         }
       } else {
+        console.log('[LOGIN PAGE] Failed:', result.message);
         // Handle specific error cases
         if (result.message?.includes('credentials')) {
           setErrors({ general: 'Invalid username or password. Please try again.' });
@@ -74,6 +76,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
         showError('Login Failed', result.message || 'Please check your credentials and try again.');
       }
     } catch (error) {
+      console.error('[LOGIN PAGE] Error:', error);
       const errorMessage = 'An unexpected error occurred. Please try again.';
       setErrors({ general: errorMessage });
       showError('Login Error', errorMessage);

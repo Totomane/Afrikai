@@ -41,19 +41,14 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess }) => {
   const [showEmailVerificationPrompt, setShowEmailVerificationPrompt] = useState(false);
   const [sendingVerification, setSendingVerification] = useState(false);
 
-  // Get redirect parameter from URL
-  const getRedirectParam = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('redirect') || '/dashboard';
-  };
+
 
   // Redirect if already logged in
   useEffect(() => {
-    if (!loading && user) {
-      const redirectTo = getRedirectParam();
-      navigate(sanitizeRedirectUrl(redirectTo));
+    if (!loading && user && !onSuccess) {
+      navigate('app');
     }
-  }, [user, loading]);
+  }, [user, loading, onSuccess]);
 
   const handleSubmit = async (formData: Record<string, string>) => {
     setIsLoading(true);
@@ -63,6 +58,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess }) => {
       const result = await register(formData.username, formData.email, formData.password);
       
       if (result.success) {
+        console.log('[SIGNUP PAGE] Success');
         showSuccess('Account Created!', 'Welcome! Your account has been created successfully.');
         
         // Show email verification prompt
@@ -74,13 +70,13 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess }) => {
             onSuccess();
           }, 2000); // Small delay to show success message
         } else {
-          // Redirect to dashboard after a short delay only if not used as modal
+          // Redirect to app after a short delay only if not used as modal
           setTimeout(() => {
-            const redirectTo = getRedirectParam();
-            navigate(sanitizeRedirectUrl(redirectTo));
+            navigate('app');
           }, 3000);
         }
       } else {
+        console.log('[SIGNUP PAGE] Failed:', result.message);
         // Format and display backend errors
         if (typeof result.message === 'object') {
           setErrors(formatBackendErrors(result.message));
@@ -90,6 +86,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess }) => {
         showError('Registration Failed', 'Please check the form and try again.');
       }
     } catch (error) {
+      console.error('[SIGNUP PAGE] Error:', error);
       const errorMessage = 'An unexpected error occurred. Please try again.';
       setErrors({ general: errorMessage });
       showError('Registration Error', errorMessage);
@@ -215,7 +212,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess }) => {
             
             <div className="text-center">
               <Link
-                to={`/login${getRedirectParam() !== '/dashboard' ? `?redirect=${getRedirectParam()}` : ''}`}
+                to="/login"
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Sign in to existing account

@@ -27,6 +27,8 @@ export interface ConnectedAccount {
  * Fetch CSRF token from the backend
  */
 export const fetchCSRFToken = async (): Promise<string | null> => {
+  console.log('[CSRF] Fetching token from:', `${API_BASE}/api/auth/csrf/`);
+  
   try {
     const res = await fetch(`${API_BASE}/api/auth/csrf/`, {
       method: 'GET',
@@ -34,13 +36,16 @@ export const fetchCSRFToken = async (): Promise<string | null> => {
     });
     
     if (!res.ok) {
+      console.error('[CSRF] Failed with status:', res.status);
       throw new Error(`Failed to fetch CSRF token: ${res.status}`);
     }
     
     const data = await res.json();
+    console.log('[CSRF] Token received:', !!data.csrfToken);
+    
     return data.csrfToken;
   } catch (error) {
-    console.error('Failed to fetch CSRF token:', error);
+    console.error('[CSRF] Error:', error);
     return null;
   }
 };
@@ -53,6 +58,12 @@ const makeAuthenticatedRequest = async (
   body: any,
   csrfToken: string
 ): Promise<Response> => {
+  console.log('[REQUEST] POST to:', url);
+  console.log('[REQUEST] Body:', {
+    ...body,
+    password: body.password ? '[HIDDEN]' : undefined
+  });
+  
   return fetch(url, {
     method: 'POST',
     credentials: 'include',
@@ -70,15 +81,28 @@ export const register = async (
   password: string,
   csrfToken: string
 ): Promise<AuthResponse> => {
+  console.log('[REGISTER] Starting registration for:', username, email);
+  
   try {
+    const requestBody = { username, email, password };
+    
     const res = await makeAuthenticatedRequest(
       `${API_BASE}/api/auth/register/`,
-      { username, email, password },
+      requestBody,
       csrfToken
     );
-    return res.json();
+    
+    console.log('[REGISTER] Response status:', res.status);
+    
+    const responseData = await res.json();
+    console.log('[REGISTER] Response:', responseData);
+    
+    return responseData;
   } catch (error) {
-    console.error('Registration failed:', error);
+    console.error('[REGISTER] Error:', error);
+    if (error instanceof TypeError) {
+      console.error('[REGISTER] Network error - check if backend is running');
+    }
     return { success: false, message: 'Registration failed. Please try again.' };
   }
 };
@@ -88,15 +112,28 @@ export const login = async (
   password: string,
   csrfToken: string
 ): Promise<AuthResponse> => {
+  console.log('[LOGIN] Attempting login for:', username);
+  
   try {
+    const requestBody = { username, password };
+    
     const res = await makeAuthenticatedRequest(
       `${API_BASE}/api/auth/login/`,
-      { username, password },
+      requestBody,
       csrfToken
     );
-    return res.json();
+    
+    console.log('[LOGIN] Response status:', res.status);
+    
+    const responseData = await res.json();
+    console.log('[LOGIN] Response:', responseData);
+    
+    return responseData;
   } catch (error) {
-    console.error('Login failed:', error);
+    console.error('[LOGIN] Error:', error);
+    if (error instanceof TypeError) {
+      console.error('[LOGIN] Network error - check if backend is running');
+    }
     return { success: false, message: 'Login failed. Please try again.' };
   }
 };

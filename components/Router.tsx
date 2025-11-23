@@ -8,9 +8,10 @@ import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
 import { EmailVerificationPage } from '../pages/auth/EmailVerificationPage';
 import { LandingPage } from './LandingPage';
 import { MainApp } from './MainApp';
+import { SharePage } from '../pages/SharePage';
 import { Loader2 } from 'lucide-react';
 
-type Route = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email' | 'landing' | 'app' | 'home';
+type Route = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email' | 'landing' | 'app' | 'home' | 'share';
 
 interface RouterProps {
   initialRoute?: Route;
@@ -18,7 +19,7 @@ interface RouterProps {
 
 export const Router: React.FC<RouterProps> = ({ initialRoute }) => {
   const { user, loading } = useAuth();
-  const [currentRoute, setCurrentRoute] = useState<Route>(initialRoute || 'home');
+  const [currentRoute, setCurrentRoute] = useState<Route>(initialRoute || 'landing');
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const [showLandingPage, setShowLandingPage] = useState(true);
 
@@ -44,6 +45,11 @@ export const Router: React.FC<RouterProps> = ({ initialRoute }) => {
     } else if (path.includes('/app')) {
       setCurrentRoute('app');
     } else if (path.includes('/landing')) {
+      setCurrentRoute('landing');
+    } else if (path.includes('/share')) {
+      setCurrentRoute('share');
+    } else if (path === '/') {
+      // Root path should show landing page
       setCurrentRoute('landing');
     }
 
@@ -84,6 +90,9 @@ export const Router: React.FC<RouterProps> = ({ initialRoute }) => {
       case 'landing':
         path = '/landing';
         break;
+      case 'share':
+        path = '/share';
+        break;
     }
     
     window.history.pushState({}, '', path);
@@ -107,11 +116,7 @@ export const Router: React.FC<RouterProps> = ({ initialRoute }) => {
   }
 
   const handleGetStarted = () => {
-    if (user) {
-      navigate('app');
-    } else {
-      navigate('app'); // Changed: go to app even if not authenticated
-    }
+    navigate('app'); // Go to app when user clicks Get Started
   };
 
   // Auto-redirect logic - only redirect auth pages when already logged in
@@ -138,9 +143,10 @@ export const Router: React.FC<RouterProps> = ({ initialRoute }) => {
       return <LandingPage onGetStarted={handleGetStarted} />;
     case 'app':
       return <MainApp />;
+    case 'share':
+      return <SharePage />;
     default:
-      // Default home - always go to app
-      navigate('app');
-      return null;
+      // Default home - show landing page
+      return <LandingPage onGetStarted={handleGetStarted} />;
   }
 };
