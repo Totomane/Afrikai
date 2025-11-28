@@ -5,7 +5,7 @@ import { useAuth } from './context/authContext';
 const OAUTH_PROVIDERS = [
   { id: 'google', name: 'Google', icon: '🔗' },
   { id: 'github', name: 'GitHub', icon: '🔗' },
-  { id: 'linkedin', name: 'LinkedIn', icon: '🔗' },
+  { id: 'linkedin', name: 'linkedIn', icon: '🔗' },
   { id: 'twitter', name: 'Twitter/X', icon: '🔗' },
   { id: 'facebook', name: 'Facebook', icon: '🔗' },
 ];

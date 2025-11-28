@@ -70,6 +70,8 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
     }
   }, [user?.id, refreshConnectedProviders]); // Only run when user ID changes
 
+
+
   // Close social share menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -198,48 +200,51 @@ export const UserSidebar: React.FC<UserSidebarProps> = ({ className = '' }) => {
   const handleConnectAccount = async (platform: string) => {
     const provider = platform.toLowerCase();
     
-    console.log(`[OAuth] Starting connection process for ${platform} (${provider})`);
+    console.log(`[UI:Connect:${platform}] USER_INITIATED: Starting connection process`);
     
     // Don't allow connecting if already connected
     if (connectedProviders.includes(provider)) {
-      console.log(`[OAuth] ${provider} is already connected, skipping`);
+      console.log(`[UI:Connect:${platform}] ALREADY_CONNECTED: Provider already in list`);
       showError('Already Connected', `Your ${platform} account is already connected.`);
       return;
     }
     
     try {
-      console.log(`[OAuth] Initiating OAuth flow for ${provider}...`);
+      console.log(`[UI:Connect:${platform}] NEW_TAB_WARNING: Will open OAuth in new tab`);
+      
+      // Show user that a new tab will open
+      showSuccess('Opening OAuth...', `Opening ${platform} authentication in a new tab. Complete the process there and return here.`);
+      
+      console.log(`[UI:Connect:${platform}] INITIATING_FLOW: Starting OAuth new tab`);
       const success = await connectOAuthProvider(platform);
-      console.log(`[OAuth] OAuth flow result for ${provider}:`, success);
       
       if (success) {
-        console.log(`[OAuth] ${provider} connection successful!`);
+        console.log(`[UI:Connect:${platform}] CONNECTION_SUCCESS: Account connected via new tab`);
         showSuccess('Account Connected!', `Your ${platform} account has been successfully connected.`);
       } else {
-        console.log(`[OAuth] ${provider} connection failed or was cancelled`);
-        showError('Connection Failed', `Failed to connect to ${platform}. Please try again.`);
+        console.log(`[UI:Connect:${platform}] CONNECTION_FAILED: OAuth flow failed`);
+        showError('Connection Failed', `Failed to connect to ${platform}. This might be due to new tab being blocked. Please allow new tabs for this site and try again.`);
       }
     } catch (error) {
-      console.error(`[OAuth] Error connecting ${provider}:`, error);
-      showError('Connection Error', `Failed to connect to ${platform}. Please try again.`);
+      console.error(`[UI:Connect:${platform}] CONNECTION_ERROR: Exception during connection`);
+      console.error(`[UI:Connect:${platform}] ERROR_DETAILS:`, error);
+      showError('Connection Error', `Failed to connect to ${platform}. Please ensure new tabs are allowed and try again.`);
     }
   };
 
   const handleDisconnectAccount = async (platform: string) => {
     const provider = platform.toLowerCase();
     
-    console.log(`[OAuth] Starting disconnection process for ${platform} (${provider})`);
+    console.log(`[UI] User disconnecting ${platform}`);
     
     try {
-      console.log(`[OAuth] Calling backend disconnect for ${provider}...`);
       const success = await disconnectOAuthProvider(provider);
-      console.log(`[OAuth] Backend disconnect result for ${provider}:`, success);
       
       if (success) {
-        console.log(`[OAuth] ${provider} disconnected successfully!`);
+        console.log(`[UI] ${platform} disconnected successfully`);
         showSuccess('Account Disconnected', `Your ${platform} account has been disconnected.`);
       } else {
-        console.log(`[OAuth] Failed to disconnect ${provider} - backend returned false`);
+        console.log(`[UI] ${platform} disconnect failed`);
         showError('Disconnection Failed', `Failed to disconnect from ${platform}. Please try again.`);
       }
     } catch (error) {
